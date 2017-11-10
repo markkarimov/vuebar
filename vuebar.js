@@ -47,6 +47,8 @@
 
                     draggerClass: 'vb-dragger',
                     draggerStylerClass: 'vb-dragger-styler',
+                    horizontal: false,
+                    draggerXClass: 'vb-dragger-x',
                 },
 
                 // reference to binding
@@ -122,12 +124,20 @@
         \*------------------------------------*/
         function computeVisibleArea(el){
             var state = getState(el);
-            state.visibleArea = (state.el2.clientHeight / state.el2.scrollHeight);
+            if (state.config.horizontal) {
+                state.visibleArea = (state.el2.clientWidth / state.el2.scrollWidth);
+            } else {
+                state.visibleArea = (state.el2.clientHeight / state.el2.scrollHeight);
+            }
         }
 
         function computeScrollTop(el){
             var state = getState(el);
-            state.scrollTop = state.barTop * (state.el2.scrollHeight / state.el2.clientHeight);
+            if (state.config.horizontal) {
+                state.scrollTop = state.barTop * (state.el2.scrollWidth / state.el2.clientWidth);
+            } else {
+                state.scrollTop = state.barTop * (state.el2.scrollHeight / state.el2.clientHeight);
+            }
         }
 
         function computeBarTop(el, event){
@@ -135,25 +145,44 @@
 
             // if the function gets called on scroll event
             if (!event) {
-                state.barTop = state.el2.scrollTop * state.visibleArea;
+                if (state.config.horizontal) {
+                    state.barTop = state.el2.scrollLeft * state.visibleArea;
+                } else {
+                    state.barTop = state.el2.scrollTop * state.visibleArea;
+                }
                 return false;
             } // else the function gets called when moving dragger with mouse
 
 
-            var relativeMouseY = (event.clientY - state.el1.getBoundingClientRect().top);
-            if (relativeMouseY <= state.mouseBarOffsetY) { // if bar is trying to go over top
+            if (state.config.horizontal) {
+              var relativeMouseX = (event.clientX - state.el1.getBoundingClientRect().left);
+              if (relativeMouseX <= state.mouseBarOffsetY) { // if bar is trying to go over left edge
                 state.barTop = 0;
-            }
+              }
 
-            if (relativeMouseY > state.mouseBarOffsetY) { // if bar is moving between top and bottom
+              if (relativeMouseX > state.mouseBarOffsetY) { // if bar is moving between top and bottom
+                state.barTop = relativeMouseX - state.mouseBarOffsetY;
+              }
+
+
+              if ( (state.barTop + state.barHeight ) >= state.el2.clientWidth ) { // if bar is trying to go over bottom
+                state.barTop = state.el2.clientWidth - state.barWidth;
+              }
+            } else {
+              var relativeMouseY = (event.clientY - state.el1.getBoundingClientRect().top);
+              if (relativeMouseY <= state.mouseBarOffsetY) { // if bar is trying to go over top
+                state.barTop = 0;
+              }
+
+              if (relativeMouseY > state.mouseBarOffsetY) { // if bar is moving between top and bottom
                 state.barTop = relativeMouseY - state.mouseBarOffsetY;
-            }
+              }
 
 
-            if ( (state.barTop + state.barHeight ) >= state.el2.clientHeight ) { // if bar is trying to go over bottom
+              if ( (state.barTop + state.barHeight ) >= state.el2.clientHeight ) { // if bar is trying to go over bottom
                 state.barTop = state.el2.clientHeight - state.barHeight;
+              }
             }
-
         }
 
         function computeBarHeight(el){
@@ -177,7 +206,11 @@
             var dragger = document.createElement('div');
             var draggerStyler = document.createElement('div');
 
-            dragger.className = state.config.draggerClass;
+            if (state.config.horizontal) {
+              dragger.className = state.config.draggerXClass;
+            } else {
+              dragger.className = state.config.draggerClass;
+            }
 
             dragger.style.position = 'absolute';
 
@@ -199,8 +232,14 @@
             var state = getState(el);
 
             // setting dragger styles
-            state.dragger.style.height = parseInt( Math.round( state.barHeight)  ) + 'px';
-            state.dragger.style.top = parseInt( Math.round( state.barTop ) ) + 'px';
+            if (state.config.horizontal) {
+              state.dragger.style.width = parseInt( Math.round( state.barHeight)  ) + 'px';
+              state.dragger.style.left = parseInt( Math.round( state.barTop ) ) + 'px';
+            } else {
+              state.dragger.style.height = parseInt( Math.round( state.barHeight)  ) + 'px';
+              state.dragger.style.top = parseInt( Math.round( state.barTop ) ) + 'px';
+            }
+
             //state.dragger.style.height = Math.ceil( state.barHeight ) + 'px';
             //state.dragger.style.top = Math.ceil( state.barTop ) + 'px';
 
@@ -318,7 +357,11 @@
 
         function updateScroll(el){
             var state = getState(el);
-            state.el2.scrollTop = state.scrollTop;
+            if (state.config.horizontal) {
+              state.el2.scrollLeft = state.scrollTop;
+            } else {
+              state.el2.scrollTop = state.scrollTop;
+            }
         }
 
 
@@ -420,7 +463,11 @@
                 if ( event.which!==1 ) { return false }
 
                 state.barDragging = true;
-                state.mouseBarOffsetY = event.offsetY;
+                if (state.config.horizontal) {
+                  state.mouseBarOffsetY = event.offsetX;
+                } else {
+                  state.mouseBarOffsetY = event.offsetY;
+                }
 
                 // disable user select
                 state.el1.style.userSelect = 'none';
@@ -533,9 +580,15 @@
             // el2 styles and class
             addClass(state.el2, state.config.el2Class);
             state.el2.style.display = 'block';
-            state.el2.style.overflowX = 'hidden';
-            state.el2.style.overflowY = 'scroll';
+            if (state.config.horizontal) {
+              state.el2.style.overflowX = 'scroll';
+              state.el2.style.overflowY = 'hidden';
+            } else {
+              state.el2.style.overflowX = 'hidden';
+              state.el2.style.overflowY = 'scroll';
+            }
             state.el2.style.height = '100%';
+            state.el2.style.width = '100%';
 
             // do the magic
             if (state.draggerEnabled) {
@@ -552,12 +605,20 @@
                     compatStyle(state.el2, 'BoxSizing', 'border-box'); */
                     state.el2.style.width = '100%';
                     compatStyle(state.el2, 'BoxSizing', 'content-box');
-                    state.el2.style.paddingRight = '20px';
+                    if (state.config.horizontal) {
+                      state.el2.style.paddingBottom = '20px';
+                    } else {
+                      state.el2.style.paddingRight = '20px';
+                    }
                 }
 
                 // hide original browser scrollbar behind element edges and hidden overflow
                 else {
-                    state.el2.style.width = 'calc(100% + ' + elNativeScrollbarWidth + 'px)';
+                    if (state.config.horizontal) {
+                      state.el2.style.height = 'calc(100% + ' + elNativeScrollbarWidth + 'px)';
+                    } else {
+                      state.el2.style.width = 'calc(100% + ' + elNativeScrollbarWidth + 'px)';
+                    }
                 }
 
             }
